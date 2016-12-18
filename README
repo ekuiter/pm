@@ -1,0 +1,15 @@
+pm
+==
+
+Runs only in Clozure Common Lisp!
+
+To run inside SLIME, evaluate:
+(setf (ccl:current-directory) "<<pm directory>>")
+Then open pm.lisp and press C-c C-k.
+
+To run in a ccl command line, install Quicklisp and evaluate:
+(load "~/quicklisp/setup.lisp")
+(load "<<pm directory>>/pm.lisp")
+
+To use stats-related functions, install gitstats:
+brew install --HEAD homebrew/head-only/gitstats
