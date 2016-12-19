@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := all
 
 all:
+	rm *.dx64fsl
 	ccl -e "(progn (load \"~/quicklisp/setup.lisp\") (load \"pm.lisp\") (ccl:save-application \"pm\" :toplevel-function 'gui :prepend-kernel t))"
 	cp pm pm.app/Contents/MacOS/
 
