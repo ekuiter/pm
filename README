@@ -13,3 +13,6 @@ To run in a ccl command line, install Quicklisp and evaluate:
 
 To use stats-related functions, install gitstats:
 brew install --HEAD homebrew/head-only/gitstats
+
+To use the GUI, install Tcl/Tk.
+To enable JPG/PNG/... support, copy Img-Darwin64 to ~/Library/Tcl.

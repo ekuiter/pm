@@ -1,5 +1,6 @@
 (ql:quickload "cl-fad")
 (ql:quickload "split-sequence")
+(load "ltk/ltk")
 
 (defparameter *projects-path* #P"~/Projekte/")
 (defparameter *project-directory-parts* '(:namespace :technology :year :name))
@@ -8,7 +9,9 @@
 (defvar *project-functions* nil)
 (defvar *projects* nil)
 
-(load "macros.lisp")
-(load "make-project.lisp")
-(load "get-project.lisp")
-(load "project-functions.lisp")
+(dotimes (i 2)
+  (load "macros")
+  (load "make-project")
+  (load "get-project")
+  (load "project-functions")
+  (load "gui"))

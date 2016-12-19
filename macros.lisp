@@ -1,6 +1,7 @@
 (defun add-project-function (function-name)
   "Adds a function to the list of project-defun'ed functions."
-  (push function-name *project-functions*))
+  (unless (find function-name *project-functions*)
+    (push function-name *project-functions*)))
 
 (defmacro defaccessor (&rest accessors)
   "Accesses a project field."
