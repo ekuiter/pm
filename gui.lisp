@@ -111,37 +111,32 @@
 				(label :init (:text "Year:") :grid (1 0 :sticky :e))
 				(label :name year :grid (1 1 :sticky :w))))))))
 
-      (let* ((load-image-resource
-	      (lambda (canvas resource)
-		(draw-image canvas (when resource (format nil "res/~a.png" resource)))))
+      (labels ((load-image-resource (canvas resource)
+		 (draw-image canvas (when resource (format nil "res/~a.png" resource))))
 
-	     (get-selected-project
-	      (lambda ()
-		(let ((selection (first (ltk:listbox-get-selection search-listbox))))
-		  (when *filtered-projects* (nth selection *filtered-projects*)))))
+	       (get-selected-project ()
+		 (let ((selection (first (ltk:listbox-get-selection search-listbox))))
+		   (when *filtered-projects* (nth selection *filtered-projects*))))
 
-	     (update-project
-	      (lambda ()
-		(with-project (funcall get-selected-project)
-		  (set-label-text name-label (project-name))
-		  (set-label-text technology-label (project-technology))
-		  (set-label-text year-label (project-year))
-		  (funcall load-image-resource namespace-canvas (project-namespace)))))
-	     
-	     (filter-projects
-	      (lambda ()
-		(setf *filtered-projects* (search-projects (ltk:text search-entry)))
-		(ltk:listbox-clear search-listbox)
-		(ltk:listbox-append search-listbox
-				    (mapcar #'project-directory *filtered-projects*))
-		(when *filtered-projects*	(ltk:listbox-select search-listbox 0))
-		(funcall update-project)))
+	       (update-project ()
+		 (with-project (get-selected-project)
+		   (set-label-text name-label (project-name))
+		   (set-label-text technology-label (project-technology))
+		   (set-label-text year-label (project-year))
+		   (load-image-resource namespace-canvas (project-namespace))))
+	       
+	       (filter-projects ()
+		 (setf *filtered-projects* (search-projects (ltk:text search-entry)))
+		 (ltk:listbox-clear search-listbox)
+		 (ltk:listbox-append search-listbox
+				     (mapcar #'project-directory *filtered-projects*))
+		 (when *filtered-projects*	(ltk:listbox-select search-listbox 0))
+		 (update-project))
 
-	     (reset-filter
-	      (lambda (&optional evt)
-		(declare (ignore evt))
-		(setf (ltk:text search-entry) "")
-		(funcall filter-projects))))
+	       (reset-filter (&optional evt)
+		 (declare (ignore evt))
+		 (setf (ltk:text search-entry) "")
+		 (filter-projects)))
 
 	(ltk::use-theme "clam")
 	(ltk:format-wish "package require Img")
@@ -156,23 +151,23 @@
 		  (lambda (evt)
 		    (let ((given-char (aref (write-to-string (ltk:event-char evt)) 0)))
 		      (when (alphanumericp given-char)
-			(funcall filter-projects)))))
+			(filter-projects)))))
 	(ltk:bind search-entry "<Key-Up>"
 		  (lambda (evt)
 		    (declare (ignore evt))
 		    (move-listbox-selection search-listbox :up)
-		    (funcall update-project)))
+		    (update-project)))
 	(ltk:bind search-entry "<Key-Down>"
 		  (lambda (evt)
 		    (declare (ignore evt))
 		    (move-listbox-selection search-listbox :down)
-		    (funcall update-project)))
+		    (update-project)))
 	(ltk:bind search-entry "<Return>"
 		  (lambda (evt)
 		    (declare (ignore evt))
-		    (open-project (funcall get-selected-project))
-		    (funcall reset-filter)))
-	(ltk:bind search-entry "<Command-a>" reset-filter)
+		    (open-project (get-selected-project))
+		    (reset-filter)))
+	(ltk:bind search-entry "<Command-a>" #'reset-filter)
 
 	(ltk:configure search-listbox :borderwidth 0)
 	(ltk:configure search-listbox :takefocus 0)
@@ -180,8 +175,8 @@
 	      (lambda (sel)
 		(declare (ignore sel))
 		(ltk:focus search-entry)
-		(funcall update-project)))
-	(funcall reset-filter)
+		(update-project)))
+	(reset-filter)
 
 	(ltk:configure name-label :font :big-font)
 	(ltk:configure name-label :padding "5 2")

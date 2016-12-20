@@ -5,7 +5,7 @@
   <key>CFBundleDisplayName</key>
   <string>pm</string>
   <key>CFBundleExecutable</key>
-  <string>pm</string>
+  <string>run</string>
   <key>CFBundleIdentifier</key>
   <string>de.elias-kuiter.pm</string>
   <key>CFBundleName</key>

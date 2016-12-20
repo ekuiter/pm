@@ -1,3 +1,4 @@
 *.dx64fsl
 pm
 pm.app/Contents/MacOS/pm
+pm.app/Contents/MacOS/res
