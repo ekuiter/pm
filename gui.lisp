@@ -1,7 +1,14 @@
 (defvar *filtered-projects* nil)
 
-(defun configure-window (window title width height)
-  (ltk:wm-title window title)
+(defun require-package (package)
+  (ltk:format-wish "package require ~a" package))
+
+(defun configure-style (style &rest options)
+  (ltk:format-wish "ttk::style configure ~a~{ ~a~}" style
+		   (loop while options collect
+			(format nil "-~(~a~) ~(~a~)" (pop options) (pop options)))))
+
+(defun center-window (window width height)
   (ltk:minsize window width height)
   (ltk:maxsize window width height)
   (ltk:set-geometry window width height
@@ -22,6 +29,9 @@
     (unless height (setf height (image-property image "height")))
     (when width-p (ltk:configure canvas :width width))
     (when height-p (ltk:configure canvas :height height))))
+
+(defun draw-image-resource (canvas resource)
+  (draw-image canvas (when resource (format nil "res/~(~a~).png" resource))))
 
 (defun listbox-size (listbox)
   (ltk:format-wish "senddatastring [~a size]" (ltk::widget-path listbox))
@@ -68,12 +78,14 @@
 
 (defun make-widget-instance (tree)
   (let ((instance-sym (gensym)))
-    (destructuring-bind (&key type name gensymed init pack grid children parent) tree
+    (destructuring-bind (&key type name gensymed init pack grid configure children parent) tree
       (declare (ignore name gensymed children))
       (when (equal type 'frame)
 	(setf pack (append pack '(:fill :both :anchor :nw))))
       `(let ((,instance-sym (make-instance ',(intern (symbol-name type) 'ltk)
 					   :master ,parent ,@init)))
+	 ,@(loop while configure collect
+		`(ltk:configure ,instance-sym ,(pop configure) ,(pop configure)))
 	 ,(if grid
 	      `(ltk:grid ,instance-sym ,@grid)
 	      `(ltk:pack ,instance-sym ,@pack))
@@ -91,39 +103,78 @@
 (defmacro let-widgets (tree &body forms)
   (make-let-form (preorder-traversal tree) forms))
 
+(defmacro command (widget &rest forms)
+  `(setf (ltk:command ,widget)
+	 (if (equal (ltk::widget-class-name ,widget) "ttk::button")
+	     (lambda () ,@forms)
+	     (lambda (arg) (declare (ignorable arg)) ,@forms))))
+
+(defmacro bind (widget &rest bindings)
+  (loop for binding in bindings collect
+       (destructuring-bind (event-name &rest forms) binding
+	 `(ltk:bind ,widget ,event-name
+		    (lambda (evt)
+		      (declare (ignorable evt))
+		      ,@forms)))
+     into binding-forms finally
+       (return `(progn ,@binding-forms))))
+
 (defun gui ()
   (ltk:with-ltk ()
+    (ltk::use-theme "clam")
+    (require-package "Img")
+    (configure-style "TFrame" :background :white)
+    (configure-style "TLabel" :background :white)
+    (ltk:wm-title ltk:*tk* "pm")
+    (center-window ltk:*tk* 500 200)
+    (ltk:font-create :big-font :size 20)
+
     (let-widgets
-	(frame :name wrapper :pack (:padx 4 :pady 4) :children
-	       ((frame :name left :pack (:side :left) :children
-		       ((entry :name search :pack (:fill :both))
+	(frame :name wrapper
+	       :pack (:padx 4 :pady 4) :children
+	       ((frame :name left
+		       :pack (:side :left) :children
+		       ((entry :name search
+			       :pack (:fill :both)
+			       :configure (:font :big-font))
 			(frame :pack (:pady 2))
-			(listbox :name search :pack (:fill :both))))
+			(listbox :name search
+				 :pack (:fill :both)
+				 :configure (:borderwidth 0 :takefocus 0))))
 		(frame :pack (:side :left :padx 2))
 		(frame :name right :children
 		       ((frame :name title :children
 			       ((canvas :name namespace
-					:init (:width 32 :height 32) :pack (:side :left))
-				(label :name name :pack (:fill :both))))
-			(frame :name details :pack (:pady 2) :children
-			       ((label :init (:text "Technology:") :grid (0 0 :sticky :e))
-				(label :name technology :grid (0 1 :sticky :w))
-				(label :init (:text "Year:") :grid (1 0 :sticky :e))
-				(label :name year :grid (1 1 :sticky :w))))))))
+					:init (:width 32 :height 32)
+					:pack (:side :left)
+					:configure (:highlightthickness 0))
+				(label :name name
+				       :pack (:fill :both)
+				       :configure (:font :big-font :padding "5 2"))))
+			(frame :name details
+			       :pack (:pady 2) :children
+			       ((label :init (:text "Technology:")
+				       :grid (0 0 :sticky :e))
+				(label :name technology
+				       :grid (0 1 :sticky :w))
+				(label :init (:text "Year:")
+				       :grid (1 0 :sticky :e))
+				(label :name year
+				       :grid (1 1 :sticky :w))))))))
 
-      (labels ((load-image-resource (canvas resource)
-		 (draw-image canvas (when resource (format nil "res/~a.png" resource))))
-
-	       (get-selected-project ()
+      (labels ((get-selected-project ()
 		 (let ((selection (first (ltk:listbox-get-selection search-listbox))))
 		   (when *filtered-projects* (nth selection *filtered-projects*))))
 
 	       (update-project ()
 		 (with-project (get-selected-project)
+		   (configure-style "TLabel" :foreground
+				    (if (get-selected-project) :black :white))
+		   (ltk:focus search-entry)
 		   (set-label-text name-label (project-name))
 		   (set-label-text technology-label (project-technology))
 		   (set-label-text year-label (project-year))
-		   (load-image-resource namespace-canvas (project-namespace))))
+		   (draw-image-resource namespace-canvas (project-namespace))))
 	       
 	       (filter-projects ()
 		 (setf *filtered-projects* (search-projects (ltk:text search-entry)))
@@ -133,52 +184,28 @@
 		 (when *filtered-projects*	(ltk:listbox-select search-listbox 0))
 		 (update-project))
 
-	       (reset-filter (&optional evt)
-		 (declare (ignore evt))
+	       (reset-filter ()
 		 (setf (ltk:text search-entry) "")
 		 (filter-projects)))
 
-	(ltk::use-theme "clam")
-	(ltk:format-wish "package require Img")
-	(ltk:format-wish "ttk::style configure TFrame -background white")
-	(ltk:format-wish "ttk::style configure TLabel -background white")
-	(configure-window ltk:*tk* "pm" 500 200)
-	(ltk:font-create :big-font :size 20)
+	(bind search-entry
+	      ("<Key>"
+	       (let ((given-char (aref (write-to-string (ltk:event-char evt)) 0)))
+		 (when (alphanumericp given-char)
+		   (filter-projects))))
+	      ("<Key-Up>"
+	       (move-listbox-selection search-listbox :up)
+	       (update-project))
+	      ("<Key-Down>"
+	       (move-listbox-selection search-listbox :down)
+	       (update-project))
+	      ("<Return>"
+	       (open-project (get-selected-project))
+	       (reset-filter))
+	      ("<Command-a>"
+	       (reset-filter)))
 
-	(ltk:configure search-entry :font :big-font)
-	(ltk:focus search-entry)
-	(ltk:bind search-entry "<Key>"
-		  (lambda (evt)
-		    (let ((given-char (aref (write-to-string (ltk:event-char evt)) 0)))
-		      (when (alphanumericp given-char)
-			(filter-projects)))))
-	(ltk:bind search-entry "<Key-Up>"
-		  (lambda (evt)
-		    (declare (ignore evt))
-		    (move-listbox-selection search-listbox :up)
-		    (update-project)))
-	(ltk:bind search-entry "<Key-Down>"
-		  (lambda (evt)
-		    (declare (ignore evt))
-		    (move-listbox-selection search-listbox :down)
-		    (update-project)))
-	(ltk:bind search-entry "<Return>"
-		  (lambda (evt)
-		    (declare (ignore evt))
-		    (open-project (get-selected-project))
-		    (reset-filter)))
-	(ltk:bind search-entry "<Command-a>" #'reset-filter)
+	(command search-listbox
+		 (update-project))
 
-	(ltk:configure search-listbox :borderwidth 0)
-	(ltk:configure search-listbox :takefocus 0)
-	(setf (ltk:command search-listbox)
-	      (lambda (sel)
-		(declare (ignore sel))
-		(ltk:focus search-entry)
-		(update-project)))
-	(reset-filter)
-
-	(ltk:configure name-label :font :big-font)
-	(ltk:configure name-label :padding "5 2")
-
-	(ltk:configure namespace-canvas :highlightthickness 0)))))
+	(reset-filter)))))
