@@ -64,7 +64,9 @@
 (defun preorder-traversal (tree)
   (let ((traversal))
     (labels ((traverse (tree parent)
+	       (setf tree (macroexpand tree))
 	       (setf tree (append (list :type) tree))
+	       (setf (getf tree :children) (macroexpand (getf tree :children)))
 	       (unless (getf tree :name)
 		 (setf (getf tree :name) (gensym))
 		 (setf (getf tree :gensymed) t))
@@ -119,15 +121,43 @@
      into binding-forms finally
        (return `(progn ,@binding-forms))))
 
+(defmacro details-grid (&rest fields)
+  (loop for widget in fields for row from 0 to (- (length fields) 1)
+     with widgets do
+       (let ((left-label `(label :init (:text ,(getf widget :text))
+				 :grid (,row 0 :sticky :e)
+				 :configure (:style ,(getf widget :style "TLabel"))))
+	     (right-label `(label :name ,(getf widget :name)
+				  :grid (,row 1 :sticky :w))))
+	 (setf widgets (append widgets (list left-label right-label))))
+     finally (return widgets)))
+
+(defmacro action-button (&key name text)
+  `(button :name ,name
+	   :init (:text ,text :width (length ,text))
+	   :pack (:side :left :padx 1)
+	   :configure (:takefocus 0)))
+
+(defmacro command-remote-operation (button-name function-name verb)
+  `(command ,button-name
+	    (with-project (get-selected-project)
+	      (let ((remote (first (project-remotes))))
+		(ltk:do-msg (,function-name remote (project-current-branch))
+		  :title (format nil "~a ~a (remote ~a, branch ~a)"
+				 ,verb (project-name) remote (project-current-branch)))))))
+
 (defun gui ()
   (ltk:with-ltk ()
     (ltk::use-theme "clam")
     (require-package "Img")
-    (configure-style "TFrame" :background :white)
-    (configure-style "TLabel" :background :white)
     (ltk:wm-title ltk:*tk* "pm")
     (center-window ltk:*tk* 500 200)
     (ltk:font-create :big-font :size 20)
+    (ltk:font-create :small-font :size 13)
+    (configure-style "TFrame" :background :white)
+    (configure-style "TLabel" :background :white)
+    (configure-style "TButton" :font :small-font)
+    (configure-style "TButton" :padding 3)
 
     (let-widgets
 	(frame :name wrapper
@@ -154,28 +184,19 @@
 				       :configure (:font :big-font :padding "5 2"))))
 			(frame :name details
 			       :pack (:expand t :pady 2) :children
-			       ((label :init (:text "Technology:")
-				       :grid (0 0 :sticky :e))
-				(label :name technology
-				       :grid (0 1 :sticky :w))
-				(label :init (:text "Year:")
-				       :grid (1 0 :sticky :e))
-				(label :name year
-				       :grid (1 1 :sticky :w))))
+			       (details-grid (:name technology :text "Technology:")
+					     (:name year :text "Year:")
+					     (:name current-branch :text "Current branch:"
+						    :style "GitDetails.TLabel")
+					     (:name remotes :text "Remotes:"
+						    :style "GitDetails.TLabel")))
 			(frame :name actions
 			       :pack (:fill :none :anchor :e) :children
-			       ((button :name open
-					:init (:text "Open" :width 4)
-					:pack (:side :left :padx 1)
-					:configure (:takefocus 0))
-				(button :name open-in-terminal
-					:init (:text "Term" :width 4)
-					:pack (:side :left :padx 1)
-					:configure (:takefocus 0))
-				(button :name stats
-					:init (:text "Stats" :width 5)
-					:pack (:side :left :padx 1)
-					:configure (:takefocus 0))))))))
+			       ((action-button :name open :text "Open")
+				(action-button :name open-in-terminal :text "Term")
+				(action-button :name stats :text "Stats")
+				(action-button :name push :text "Push")
+				(action-button :name pull :text "Pull")))))))
 
       (labels ((get-selected-project ()
 		 (let ((selection (first (ltk:listbox-get-selection search-listbox))))
@@ -185,10 +206,17 @@
 		 (with-project (get-selected-project)
 		   (configure-style "TLabel" :foreground
 				    (if (get-selected-project) :black :white))
+		   (configure-style "GitDetails.TLabel" :foreground
+				    (if (project-gitp) :black :white))
+		   (ltk:configure stats-button :state (if (project-gitp) :normal :disabled))
+		   (ltk:configure pull-button :state (if (project-gitp) :normal :disabled))
+		   (ltk:configure push-button :state (if (project-gitp) :normal :disabled))
 		   (ltk:focus search-entry)
 		   (set-label-text name-label (project-name))
 		   (set-label-text technology-label (project-technology))
 		   (set-label-text year-label (project-year))
+		   (set-label-text current-branch-label (project-current-branch))
+		   (set-label-text remotes-label (format nil "~{~a~^, ~}" (project-remotes)))
 		   (draw-image-resource namespace-canvas (project-namespace))))
 	       
 	       (filter-projects ()
@@ -227,5 +255,7 @@
 		 (open-project-in-terminal (get-selected-project)))
 	(command stats-button
 		 (project-stats (get-selected-project)))
-
+	(command-remote-operation push-button push-project "Push")
+	(command-remote-operation pull-button pull-project "Pull")
+	
 	(reset-filter)))))

@@ -27,7 +27,7 @@
   (lambda (form)
     (if (atom form)
 	form
-	(append (list (car form))
+	(append (list (funcall (insert-project-to-form project-sym) (car form)))
 		(when (find (car form) *project-functions*) (list project-sym))
 		(mapcar (insert-project-to-form project-sym) (cdr form))))))
 

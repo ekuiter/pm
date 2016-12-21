@@ -36,7 +36,7 @@
 (project-defun run (command)
   "Runs a command in a specified project's path."
   (let ((shell-command (concatenate 'string (apply 'export-path-command *path-exports*)
-				    (cd-command (project-path project)) command)))
+				    (cd-command (project-path)) command)))
     (string-right-trim '(#\Linefeed)
 		       (with-output-to-string (stream)
 			 (ccl:run-program "sh" (list "-c" shell-command) :output stream)))))
@@ -54,7 +54,6 @@
   (not (search "fatal" (run "git rev-parse HEAD"))))
 
 (project-defun run-git (command)
-
   (when (project-gitp)
     (run (concatenate 'string "git " command))))
 
@@ -63,8 +62,9 @@
 
 (project-defun project-remotes ()
   "Returns a list of remotes associated with the project."
-  (remove-if (lambda (remote) (equal remote ""))
-	     (split-sequence:split-sequence #\Linefeed (run-git "remote"))))
+  (when (project-gitp)
+    (remove-if (lambda (remote) (equal remote ""))
+	       (split-sequence:split-sequence #\Linefeed (run-git "remote")))))
 
 (defmacro define-remote-operation (function-name verb)
   "Defines a function for pulling or pushing a repository."
