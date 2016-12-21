@@ -45,6 +45,10 @@
   "Reveals a project in Finder."
   (run "open ."))
 
+(project-defun open-project-in-terminal ()
+  "Opens a project in a terminal."
+  (run (concatenate 'string "open . -a " *terminal-app*)))
+
 (project-defun project-gitp ()
   "Returns whether the project has a git repository."
   (not (search "fatal" (run "git rev-parse HEAD"))))

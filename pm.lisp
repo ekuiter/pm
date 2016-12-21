@@ -5,6 +5,7 @@
 (defparameter *projects-path* #P"~/Projekte/")
 (defparameter *project-directory-parts* '(:namespace :technology :year :name))
 (defparameter *path-exports* '(#P"/usr/local/bin/"))
+(defparameter *terminal-app* "iTerm")
 
 (defvar *project-functions* nil)
 (defvar *projects* nil)

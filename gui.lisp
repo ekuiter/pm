@@ -142,17 +142,18 @@
 				 :pack (:fill :both)
 				 :configure (:borderwidth 0 :takefocus 0))))
 		(frame :pack (:side :left :padx 2))
-		(frame :name right :children
+		(frame :name right
+		       :pack (:expand t :side :left) :children
 		       ((frame :name title :children
 			       ((canvas :name namespace
 					:init (:width 32 :height 32)
 					:pack (:side :left)
 					:configure (:highlightthickness 0))
 				(label :name name
-				       :pack (:fill :both)
+				       :pack (:side :left :fill :both)
 				       :configure (:font :big-font :padding "5 2"))))
 			(frame :name details
-			       :pack (:pady 2) :children
+			       :pack (:expand t :pady 2) :children
 			       ((label :init (:text "Technology:")
 				       :grid (0 0 :sticky :e))
 				(label :name technology
@@ -160,7 +161,21 @@
 				(label :init (:text "Year:")
 				       :grid (1 0 :sticky :e))
 				(label :name year
-				       :grid (1 1 :sticky :w))))))))
+				       :grid (1 1 :sticky :w))))
+			(frame :name actions
+			       :pack (:fill :none :anchor :e) :children
+			       ((button :name open
+					:init (:text "Open" :width 4)
+					:pack (:side :left :padx 1)
+					:configure (:takefocus 0))
+				(button :name open-in-terminal
+					:init (:text "Term" :width 4)
+					:pack (:side :left :padx 1)
+					:configure (:takefocus 0))
+				(button :name stats
+					:init (:text "Stats" :width 5)
+					:pack (:side :left :padx 1)
+					:configure (:takefocus 0))))))))
 
       (labels ((get-selected-project ()
 		 (let ((selection (first (ltk:listbox-get-selection search-listbox))))
@@ -200,12 +215,17 @@
 	       (move-listbox-selection search-listbox :down)
 	       (update-project))
 	      ("<Return>"
-	       (open-project (get-selected-project))
-	       (reset-filter))
+	       (open-project (get-selected-project)))
 	      ("<Command-a>"
 	       (reset-filter)))
 
 	(command search-listbox
 		 (update-project))
+	(command open-button
+		 (open-project (get-selected-project)))
+	(command open-in-terminal-button
+		 (open-project-in-terminal (get-selected-project)))
+	(command stats-button
+		 (project-stats (get-selected-project)))
 
 	(reset-filter)))))
