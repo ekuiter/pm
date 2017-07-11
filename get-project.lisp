@@ -4,7 +4,7 @@
       (setf *projects*
 	    (loop for project-path in (cl-fad:list-directory *projects-path*)
 	       collect (make-project project-path) into projects
-	       finally (return (remove 'nil projects))))))
+	       finally (return (sort (remove 'nil projects) #'> :key #'project-year))))))
 
 (defun show-projects (&key (projects (projects)) details)
   "Shows projects information."

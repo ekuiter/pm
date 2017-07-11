@@ -151,7 +151,7 @@
     (ltk::use-theme "clam")
     (require-package "Img")
     (ltk:wm-title ltk:*tk* "pm")
-    (center-window ltk:*tk* 500 200)
+    (center-window ltk:*tk* 500 300)
     (ltk:font-create :big-font :size 20)
     (ltk:font-create :small-font :size 13)
     (configure-style "TFrame" :background :white)
@@ -161,7 +161,7 @@
 
     (let-widgets
 	(frame :name wrapper
-	       :pack (:padx 4 :pady 4) :children
+	       :pack (:expand t :padx 4 :pady 4) :children
 	       ((frame :name left
 		       :pack (:side :left) :children
 		       ((entry :name search
@@ -169,7 +169,7 @@
 			       :configure (:font :big-font))
 			(frame :pack (:pady 2))
 			(listbox :name search
-				 :pack (:fill :both)
+				 :pack (:expand t :fill :both)
 				 :configure (:borderwidth 0 :takefocus 0))))
 		(frame :pack (:side :left :padx 2))
 		(frame :name right
