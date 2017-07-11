@@ -79,29 +79,33 @@
   (loop for project in projects do
        (show project :details details)))
 
-(defun find-projects (selector-fn)
+(defun find-projects (selector-fn &key (projects (projects)))
   "Returns a list of projects matching a selector function."
-  (remove-if-not selector-fn (projects)))
+  (remove-if-not selector-fn projects))
 
-(defun search-projects (query)
+(defun search-projects (query &key (projects (projects)))
   "Returns a list of projects matching a search query."
-  (loop for project in (projects)
+  (loop for project in projects
      when (search query (name project))
      collect project))
 
 (defmacro define-singular-operation (function-name list-function-name)
   "Defines a function that returns one element instead of a list."
-  `(defun ,function-name (arg)
-     (car (,list-function-name arg))))
+  `(defun ,function-name (arg &key (projects (projects)))
+     (car (,list-function-name arg :projects projects))))
 
 (define-singular-operation find-project find-projects)
 (define-singular-operation search-project search-projects)
 
 (defmacro where (&rest clauses)
   "Returns a selector function for specified criteria."
-  `(lambda (project)
-     (and ,@(loop while clauses
-	       collect `(equal (slot-value project ',(pop clauses)) ,(pop clauses))))))
+  (labels ((clause ()
+		`(equal (slot-value project ',(pop clauses)) ,(pop clauses))))
+    `(lambda (project)
+       (and ,@(loop while clauses
+		 collect (if (eql (car clauses) :not)
+			     (progn (pop clauses) `(not ,(clause)))
+			     (clause)))))))
 
 ;;; PROJECT OPERATIONS
 

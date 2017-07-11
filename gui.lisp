@@ -96,7 +96,11 @@
 		   (draw-image-resource namespace-canvas (namespace project))))
 	       
 	       (filter-projects ()
-		 (setf *filtered-projects* (search-projects (ltk:text search-entry)))
+		 (let ((filter (ltk:text search-entry)))
+		   (setf *filtered-projects*
+			 (if (equal filter "")
+			     (find-projects (where :not namespace "private"))
+			     (search-projects filter))))
 		 (ltk:listbox-clear search-listbox)
 		 (ltk:listbox-append search-listbox
 				     (mapcar #'name *filtered-projects*))
