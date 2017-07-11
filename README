@@ -5,14 +5,19 @@ Runs only in Clozure Common Lisp!
 
 To run inside SLIME, evaluate:
 (setf (ccl:current-directory) "<<pm directory>>")
-Then open pm.lisp and press C-c C-k.
+Then open packages.lisp and press C-c C-k.
 
 To run in a ccl command line, install Quicklisp and evaluate:
 (load "~/quicklisp/setup.lisp")
-(load "<<pm directory>>/pm.lisp")
+(load "<<pm directory>>/packages.lisp")
 
 To use stats-related functions, install gitstats:
 brew install --HEAD homebrew/head-only/gitstats
 
 To use the GUI, install Tcl/Tk.
 To enable JPG/PNG/... support, copy Img-Darwin64 to ~/Library/Tcl.
+Then evaluate:
+(gui:gui)
+
+To tip it off, "make" creates a macOS app bundle.
+Double-click the bundle to start the GUI.

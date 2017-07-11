@@ -20,6 +20,9 @@
 			       ,verb (name project)
 			       remote (git-current-branch project))))))
 
+(defun exit-ltk ()
+  (setf ltk:*exit-mainloop* t))
+
 (defun gui ()
   (ltk:with-ltk ()
     (ltk::use-theme "clam")
@@ -27,6 +30,7 @@
     (ltk:wm-title ltk:*tk* "pm")
     (center-window ltk:*tk* 500 300)
     (ltk:font-create :big-font :size 20)
+    (ltk:font-create :medium-font :size 15)
     (ltk:font-create :small-font :size 13)
     (configure-style "TFrame" :background :white)
     (configure-style "TLabel" :background :white)
@@ -44,7 +48,7 @@
 			(frame :pack (:pady 2))
 			(listbox :name search
 				 :pack (:expand t :fill :both)
-				 :configure (:borderwidth 0 :takefocus 0))))
+				 :configure (:borderwidth 0 :takefocus 0 :font :medium-font))))
 		(frame :pack (:side :left :padx 2))
 		(frame :name right
 		       :pack (:expand t :side :left) :children
@@ -123,7 +127,15 @@
 	       (move-listbox-selection search-listbox :down)
 	       (update-project))
 	      ("<Return>"
-	       (open-in-finder (get-selected-project)))
+	       (open-in-finder (get-selected-project))
+	       (exit-ltk))
+	      ("<Shift-Return>"
+	       (open-in-terminal (get-selected-project))
+	       (exit-ltk))
+	      ("<Command-Return>"
+	       (open-in-finder (get-selected-project))
+	       (open-in-terminal (get-selected-project))
+	       (exit-ltk))
 	      ("<Command-a>"
 	       (reset-filter)))
 
