@@ -11,7 +11,8 @@
    (technology :reader technology :initarg :technology :initform nil)
    (year :reader year :initarg :year :initform nil)
    (name :reader name :initarg :name :initform nil)
-   (path :reader path :initarg :path :initform nil)))
+   (path :reader path :initarg :path :initform nil)
+   gitp))
 
 (defvar *empty-project* (make-instance 'project))
 
@@ -151,7 +152,10 @@
 
 (defmethod gitp ((project project))
   "Returns whether the project has a git repository."
-  (not (search "fatal" (run project "git rev-parse HEAD"))))
+  (if (slot-boundp project 'gitp)
+      (slot-value project 'gitp)
+      (setf (slot-value project 'gitp)
+	    (not (search "fatal" (run project "git rev-parse HEAD"))))))
 
 (defmethod git-run ((project project) command)
   (when (gitp project)
