@@ -10,8 +10,8 @@
   (:export :namespace :technology :year :name :path :all-projects :show-projects
 	   :find-projects :search-projects :find-project :search-project
 	   :where :show :project-directory :run :open-in-finder :open-in-terminal
-	   :gitp :git-run :git-current-branch :remotes :git-pull :git-push
-	   :git-stats :git-details :*empty-project* :emptyp))
+	   :open-in-aquamacs :gitp :git-run :git-current-branch :remotes :git-pull
+	   :git-push :git-stats :git-details :*empty-project* :emptyp))
 
 (defpackage :ltk-widgets
   (:use :common-lisp)

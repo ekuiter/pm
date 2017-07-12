@@ -133,8 +133,11 @@
 	       (open-in-terminal (get-selected-project))
 	       (exit-ltk))
 	      ("<Command-Return>"
-	       (open-in-finder (get-selected-project))
+	       (open-in-aquamacs (get-selected-project))
+	       (exit-ltk))
+	      ("<Command-Shift-Return>"
 	       (open-in-terminal (get-selected-project))
+	       (open-in-aquamacs (get-selected-project))
 	       (exit-ltk))
 	      ("<Command-a>" (reset-filter))
 	      ("<Escape>" (exit-ltk)))

@@ -91,6 +91,7 @@
   (declare (ignore command)))
 (defmethod open-in-finder ((project (eql *empty-project*))))
 (defmethod open-in-terminal ((project (eql *empty-project*))))
+(defmethod open-in-aquamacs ((project (eql *empty-project*))))
 (defmethod gitp ((project (eql *empty-project*))))
 (defmethod git-run ((project (eql *empty-project*)) command)
   (declare (ignore command)))
@@ -106,6 +107,8 @@
 (defmethod open-in-finder ((project file-project))
   (ccl:run-program "open" (list (namestring (path project)))))
 (defmethod open-in-terminal ((project file-project))
+  (open-in-finder project))
+(defmethod open-in-aquamacs ((project file-project))
   (open-in-finder project))
 (defmethod gitp ((project file-project)))
 (defmethod git-run ((project file-project) command)
@@ -232,6 +235,26 @@
 (defmethod open-in-terminal ((project project))
   "Opens a project in a terminal."
   (run project (concatenate 'string "open . -a " *terminal-app*)))
+
+(defmethod open-in-aquamacs ((project project))
+  "Opens a project in Aquamacs."
+  (run project "aquamacs .")
+  (sleep 5)
+  (run project "osascript -e 'tell application \"Aquamacs\"
+    activate
+    tell application \"System Events\"
+        key code 53 # Escape
+        keystroke \"x\" # M-x
+        keystroke \"neotree\"
+        key code 36 # Return
+        key code 53
+        keystroke \"x\"
+        keystroke \"projectile-mode\"
+        key code 36
+        keystroke \"x\" using control down
+        keystroke \"g\"
+    end tell
+end tell'"))
 
 (defmethod gitp ((project project))
   "Returns whether the project has a git repository."
