@@ -1,57 +1,11 @@
 (in-package :project)
 
-(defparameter *sources*
-  (list (make-instance 'namespaced-source :path #P"~/Projekte")
-	(make-instance 'simple-source :path #P"~/Projekte/~drawings" :name "drawings")
-	(make-instance 'simple-source :path #P"~/Projekte/~music" :name "music")
-	(make-instance 'namespaced-source :path #P"~/Projekte/~videos" :name "videos")))
-(defparameter *path-exports* '(#P"/usr/local/bin/"))
-(defparameter *terminal-app* "/Applications/iTerm.app")
-(defvar *all-projects* nil)
-
-;;; PROJECT SOURCES
-
 (defclass project-source ()
   ((path :reader path :initarg :path :initform (error "must supply path"))
    (name :reader name :initarg :name :initform nil)))
 
-(defmethod print-object ((source project-source) stream)
-  (print-unreadable-object (source stream :type t)
-    (format stream "~a" (path source))))
-
-(defmethod make-project :around ((source project-source) (path pathname) &key)
-  "Creates a project instance from a pathname regarding a source."
-  (let ((directory (project-directory path)))
-    (when (and (char/= #\~ #\. (aref directory 0)) ; first character not "~"
-	       (ccl:directoryp path)) ; has to be directory
-      (call-next-method source path :directory directory))))
-
 (defclass simple-source (project-source) ())
 (defclass namespaced-source (project-source) ())
-
-(defmethod make-project ((source simple-source) (path pathname) &key directory)
-  (multiple-value-bind (parts idx)
-      (split-sequence:split-sequence #\- directory :count 2) ; split by 2 hyphens
-    (make-instance 'project
-		   :namespace "private"
-		   :technology (first parts)
-		   :year (normalize-year (second parts))
-		   :name (normalize-name (subseq directory idx) source)
-		   :path path
-		   :source source)))
-
-(defmethod make-project ((source namespaced-source) (path pathname) &key directory)
-  (multiple-value-bind (parts idx)
-      (split-sequence:split-sequence #\- directory :count 3) ; split by 3 hyphens
-    (make-instance 'project
-		   :namespace (normalize-namespace (first parts))
-		   :technology (second parts)
-		   :year (normalize-year (third parts))
-		   :name (normalize-name (subseq directory idx) source)
-		   :path path
-		   :source source)))
-
-;;; PROJECTS
 
 (defclass project ()
   ((namespace :reader namespace :initarg :namespace :initform nil)
@@ -62,7 +16,56 @@
    (source :reader source :initarg :source :initform nil)
    gitp))
 
+(defclass file-project (project) ())
+
+(defparameter *sources*
+  (list (make-instance 'namespaced-source :path #P"~/Projekte")
+	(make-instance 'simple-source :path #P"~/Projekte/~drawings" :name "drawings")
+	(make-instance 'simple-source :path #P"~/Projekte/~music" :name "music")
+	(make-instance 'namespaced-source :path #P"~/Projekte/~videos" :name "videos")))
+(defparameter *path-exports* '(#P"/usr/local/bin/"))
+(defparameter *terminal-app* "/Applications/iTerm.app")
+(defvar *all-projects* nil)
 (defvar *empty-project* (make-instance 'project))
+
+;;; PROJECT SOURCES
+
+(defmethod print-object ((source project-source) stream)
+  (print-unreadable-object (source stream :type t)
+    (format stream "~a" (path source))))
+
+(defmethod make-project :around ((source project-source) (path pathname) &key)
+  "Creates a project instance from a pathname regarding a source."
+  (handler-case
+      (let ((dirp (ccl:directoryp path)))
+	(call-next-method source path
+			  :directory (if dirp (project-directory path) (file-namestring path))
+			  :class (if dirp 'project 'file-project)))
+    (error (e) (format t "ERROR: ~a ~a~%" path e))))
+
+(defmethod make-project ((source simple-source) (path pathname) &key directory class)
+  (multiple-value-bind (parts idx)
+      (split-sequence:split-sequence #\- directory :count 2) ; split by 2 hyphens
+    (make-instance class
+		   :namespace "private"
+		   :technology (first parts)
+		   :year (normalize-year (second parts))
+		   :name (normalize-name (subseq directory idx) source)
+		   :path path
+		   :source source)))
+
+(defmethod make-project ((source namespaced-source) (path pathname) &key directory class)
+  (multiple-value-bind (parts idx)
+      (split-sequence:split-sequence #\- directory :count 3) ; split by 3 hyphens
+    (make-instance class
+		   :namespace (normalize-namespace (first parts))
+		   :technology (second parts)
+		   :year (normalize-year (third parts))
+		   :name (normalize-name (subseq directory idx) source)
+		   :path path
+		   :source source)))
+
+;;; PROJECTS
 
 (defmethod show ((project (eql *empty-project*)) &key details)
   (declare (ignore details)))
@@ -77,9 +80,23 @@
 (defmethod git-current-branch ((project (eql *empty-project*))))
 (defmethod remotes ((project (eql *empty-project*))))
 (defmethod git-stats ((project (eql *empty-project*))))
-(defmethod git-details ((project (eql *empty-project*))))
+(defmethod git-details ((project (eql *empty-project*))) "")
 (defmethod emptyp ((project (eql *empty-project*))) t)
 (defmethod emptyp ((project project)) nil)
+
+(defmethod run ((project file-project) command)
+  (declare (ignore command)))
+(defmethod open-in-finder ((project file-project))
+  (ccl:run-program "open" (list (namestring (path project)))))
+(defmethod open-in-terminal ((project file-project))
+  (open-in-finder project))
+(defmethod gitp ((project file-project)))
+(defmethod git-run ((project file-project) command)
+  (declare (ignore command)))
+(defmethod git-current-branch ((project file-project)))
+(defmethod remotes ((project file-project)))
+(defmethod git-stats ((project file-project)))
+(defmethod git-details ((project file-project)) "")
 
 (defmethod print-object ((project project) stream)
   (print-unreadable-object (project stream :type t)
@@ -125,6 +142,7 @@
 
 (defun search-projects (query &key (projects (all-projects)))
   "Returns a list of projects matching a search query."
+  (setf query (substitute #\- #\Space query))
   (loop for project in projects
      when (search query (name project) :test #'equalp)
      collect project))
@@ -168,6 +186,10 @@
 (defmethod project-directory ((project project))
   "Returns the directory from a project."
   (project-directory (path project)))
+
+(defmethod project-directory ((project file-project))
+  "Returns the file name from a file project."
+  (file-namestring (path project)))
 
 (defun export-path-command (&rest path-exports)
   "Returns a command that exports additional paths."
