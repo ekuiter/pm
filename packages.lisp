@@ -7,7 +7,7 @@
 
 (defpackage :project
   (:use :common-lisp)
-  (:export :namespace :technology :year :name :path :projects :show-projects
+  (:export :namespace :technology :year :name :path :all-projects :show-projects
 	   :find-projects :search-projects :find-project :search-project
 	   :where :show :project-directory :run :open-in-finder :open-in-terminal
 	   :gitp :git-run :git-current-branch :remotes :git-pull :git-push

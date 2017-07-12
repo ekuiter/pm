@@ -136,8 +136,8 @@
 	       (open-in-finder (get-selected-project))
 	       (open-in-terminal (get-selected-project))
 	       (exit-ltk))
-	      ("<Command-a>"
-	       (reset-filter)))
+	      ("<Command-a>" (reset-filter))
+	      ("<Escape>" (exit-ltk)))
 
 	(command search-listbox
 		 (update-project))

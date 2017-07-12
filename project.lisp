@@ -1,10 +1,57 @@
 (in-package :project)
 
-(defparameter *projects-path* #P"~/Projekte/")
+(defparameter *sources*
+  (list (make-instance 'namespaced-source :path #P"~/Projekte")
+	(make-instance 'simple-source :path #P"~/Projekte/~drawings" :name "drawings")
+	(make-instance 'simple-source :path #P"~/Projekte/~music" :name "music")
+	(make-instance 'namespaced-source :path #P"~/Projekte/~videos" :name "videos")))
 (defparameter *path-exports* '(#P"/usr/local/bin/"))
 (defparameter *terminal-app* "/Applications/iTerm.app")
-(defconstant +directory-parts+ 4)
-(defvar *projects* nil)
+(defvar *all-projects* nil)
+
+;;; PROJECT SOURCES
+
+(defclass project-source ()
+  ((path :reader path :initarg :path :initform (error "must supply path"))
+   (name :reader name :initarg :name :initform nil)))
+
+(defmethod print-object ((source project-source) stream)
+  (print-unreadable-object (source stream :type t)
+    (format stream "~a" (path source))))
+
+(defmethod make-project :around ((source project-source) (path pathname) &key)
+  "Creates a project instance from a pathname regarding a source."
+  (let ((directory (project-directory path)))
+    (when (and (char/= #\~ #\. (aref directory 0)) ; first character not "~"
+	       (ccl:directoryp path)) ; has to be directory
+      (call-next-method source path :directory directory))))
+
+(defclass simple-source (project-source) ())
+(defclass namespaced-source (project-source) ())
+
+(defmethod make-project ((source simple-source) (path pathname) &key directory)
+  (multiple-value-bind (parts idx)
+      (split-sequence:split-sequence #\- directory :count 2) ; split by 2 hyphens
+    (make-instance 'project
+		   :namespace "private"
+		   :technology (first parts)
+		   :year (normalize-year (second parts))
+		   :name (normalize-name (subseq directory idx) source)
+		   :path path
+		   :source source)))
+
+(defmethod make-project ((source namespaced-source) (path pathname) &key directory)
+  (multiple-value-bind (parts idx)
+      (split-sequence:split-sequence #\- directory :count 3) ; split by 3 hyphens
+    (make-instance 'project
+		   :namespace (normalize-namespace (first parts))
+		   :technology (second parts)
+		   :year (normalize-year (third parts))
+		   :name (normalize-name (subseq directory idx) source)
+		   :path path
+		   :source source)))
+
+;;; PROJECTS
 
 (defclass project ()
   ((namespace :reader namespace :initarg :namespace :initform nil)
@@ -12,6 +59,7 @@
    (year :reader year :initarg :year :initform nil)
    (name :reader name :initarg :name :initform nil)
    (path :reader path :initarg :path :initform nil)
+   (source :reader source :initarg :source :initform nil)
    gitp))
 
 (defvar *empty-project* (make-instance 'project))
@@ -37,8 +85,6 @@
   (print-unreadable-object (project stream :type t)
     (format stream "~a" (name project))))
 
-;;; PROJECT CREATION
-
 (defun normalize-namespace (namespace)
   "Constructs proper namespace values."
   (cond ((equal namespace "pub") "public")
@@ -49,49 +95,43 @@
   "Constructs proper year values."
   (+ 2000 (parse-integer year)))
 
-(defun make-project (project-path)
-  "Splits a project directory into a property list."
-  (let ((project-directory (project-directory project-path)))
-    (when (and (char/= #\~ #\. (aref project-directory 0)) ; first character not "~"
-	       (ccl:directoryp project-path)) ; has to be directory
-      (multiple-value-bind (parts idx)
-	  (split-sequence:split-sequence #\- project-directory ; split by hyphens
-					 :count (- +directory-parts+ 1))
-	(make-instance 'project
-		       :namespace (normalize-namespace (first parts))
-		       :technology (second parts)
-		       :year (normalize-year (third parts))
-		       :name (subseq project-directory idx)
-		       :path project-path)))))
+(defun normalize-name (name source)
+  "Constructs proper name values."
+  (if (name source)
+      (concatenate 'string "[" (name source) "] " name)
+      name))
 
 ;;; PROJECT SEARCH & FILTERING
 
-(defun projects ()
-  "Returns all projects in the projects path."
-  (or *projects*
-      (setf *projects*
-	    (loop for project-path in (cl-fad:list-directory *projects-path*)
-	       collect (make-project project-path) into projects
-	       finally (return (sort (remove 'nil projects) #'> :key #'year))))))
+(defmethod projects ((source project-source))
+  "Returns all projects in the source's path."
+  (loop for path in (cl-fad:list-directory (path source))
+     collect (make-project source path) into projects
+     finally (return (sort (remove 'nil projects) #'> :key #'year))))
 
-(defun show-projects (&key (projects (projects)) details)
+(defun all-projects ()
+  "Returns all projects of all sources."
+  (or *all-projects*
+      (setf *all-projects* (loop for source in *sources* nconc (projects source)))))
+
+(defun show-projects (&key (projects (all-projects)) details)
   "Shows projects information."
   (loop for project in projects do
        (show project :details details)))
 
-(defun find-projects (selector-fn &key (projects (projects)))
+(defun find-projects (selector-fn &key (projects (all-projects)))
   "Returns a list of projects matching a selector function."
   (remove-if-not selector-fn projects))
 
-(defun search-projects (query &key (projects (projects)))
+(defun search-projects (query &key (projects (all-projects)))
   "Returns a list of projects matching a search query."
   (loop for project in projects
-     when (search query (name project))
+     when (search query (name project) :test #'equalp)
      collect project))
 
 (defmacro define-singular-operation (function-name list-function-name)
   "Defines a function that returns one element instead of a list."
-  `(defun ,function-name (arg &key (projects (projects)))
+  `(defun ,function-name (arg &key (projects (all-projects)))
      (car (,list-function-name arg :projects projects))))
 
 (define-singular-operation find-project find-projects)
