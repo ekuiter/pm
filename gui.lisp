@@ -94,7 +94,7 @@
 		   (ltk:focus search-entry)
 		   (set-label-text name-label (name project))
 		   (set-label-text technology-label (technology project))
-		   (set-label-text year-label (year project))
+		   (set-label-text year-label (if (eq (year project) 0) "" (year project)))
 		   (set-label-text current-branch-label (git-current-branch project))
 		   (set-label-text remotes-label (format nil "~{~a~^, ~}" (remotes project)))
 		   (draw-image-resource namespace-canvas (namespace project))))

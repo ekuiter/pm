@@ -6,6 +6,9 @@
 
 (defclass simple-source (project-source) ())
 (defclass namespaced-source (project-source) ())
+(defclass bare-source (project-source)
+  ((exclude :reader exclude :initarg :exclude :initform nil)
+   (extract-year :reader extract-year :initarg :extract-year :initform (constantly 0))))
 
 (defclass project ()
   ((namespace :reader namespace :initarg :namespace :initform nil)
@@ -18,8 +21,15 @@
 
 (defclass file-project (project) ())
 
+(defun study-extract-year (directory)
+  (multiple-value-bind (parts)
+      (split-sequence:split-sequence #\- directory)
+    (parse-integer (first parts))))
+
 (defparameter *sources*
   (list (make-instance 'namespaced-source :path #P"~/Projekte")
+	(make-instance 'bare-source :path #P"~/Documents/Studium" :name "Studium"
+		       :exclude (list "Unterlagen") :extract-year #'study-extract-year)
 	(make-instance 'simple-source :path #P"~/Projekte/~drawings" :name "drawings")
 	(make-instance 'simple-source :path #P"~/Projekte/~music" :name "music")
 	(make-instance 'namespaced-source :path #P"~/Projekte/~videos" :name "videos")))
@@ -30,7 +40,7 @@
 
 ;;; PROJECT SOURCES
 
-(defmethod print-object ((source project-source) stream)
+  (defmethod print-object ((source project-source) stream)
   (print-unreadable-object (source stream :type t)
     (format stream "~a" (path source))))
 
@@ -41,7 +51,7 @@
 	(call-next-method source path
 			  :directory (if dirp (project-directory path) (file-namestring path))
 			  :class (if dirp 'project 'file-project)))
-    (error (e) (format t "ERROR: ~a ~a~%" path e))))
+    (error ())))
 
 (defmethod make-project ((source simple-source) (path pathname) &key directory class)
   (multiple-value-bind (parts idx)
@@ -51,8 +61,7 @@
 		   :technology (first parts)
 		   :year (normalize-year (second parts))
 		   :name (normalize-name (subseq directory idx) source)
-		   :path path
-		   :source source)))
+		   :path path :source source)))
 
 (defmethod make-project ((source namespaced-source) (path pathname) &key directory class)
   (multiple-value-bind (parts idx)
@@ -62,8 +71,16 @@
 		   :technology (second parts)
 		   :year (normalize-year (third parts))
 		   :name (normalize-name (subseq directory idx) source)
-		   :path path
-		   :source source)))
+		   :path path :source source)))
+
+(defmethod make-project ((source bare-source) (path pathname) &key directory class)
+  (when (and (char/= #\. (aref directory 0))
+	     (not (find directory (exclude source) :test #'equal)))
+    (make-instance class
+		   :namespace "private"
+		   :technology "" :year (funcall (extract-year source) directory)
+		   :name (normalize-name directory source)
+		   :path path :source source)))
 
 ;;; PROJECTS
 
