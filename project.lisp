@@ -29,7 +29,7 @@
 (defparameter *sources*
   (list (make-instance 'namespaced-source :path #P"~/Projekte")
 	(make-instance 'bare-source :path #P"~/Documents/Studium" :name "Studium"
-		       :exclude (list "Unterlagen") :extract-year #'study-extract-year)
+		       :exclude (list) :extract-year #'study-extract-year)
 	(make-instance 'simple-source :path #P"~/Projekte/~drawings" :name "drawings")
 	(make-instance 'simple-source :path #P"~/Projekte/~music" :name "music")
 	(make-instance 'namespaced-source :path #P"~/Projekte/~videos" :name "videos")))
@@ -238,23 +238,7 @@
 
 (defmethod open-in-aquamacs ((project project))
   "Opens a project in Aquamacs."
-  (run project "aquamacs .")
-  (sleep 5)
-  (run project "osascript -e 'tell application \"Aquamacs\"
-    activate
-    tell application \"System Events\"
-        key code 53 # Escape
-        keystroke \"x\" # M-x
-        keystroke \"neotree\"
-        key code 36 # Return
-        key code 53
-        keystroke \"x\"
-        keystroke \"projectile-mode\"
-        key code 36
-        keystroke \"x\" using control down
-        keystroke \"g\"
-    end tell
-end tell'"))
+  (run project "aquamacs ."))
 
 (defmethod gitp ((project project))
   "Returns whether the project has a git repository."
